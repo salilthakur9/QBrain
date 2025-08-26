@@ -56,11 +56,18 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(authRequest.getEmail(), authRequest.getPassword())
             );
         } catch (Exception e) {
-            throw new Exception("Incorrect username or password", e);
+            // It's better to give a more generic error for security
+            return ResponseEntity.status(401).body("Incorrect username or password");
         }
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authRequest.getEmail());
-        final String jwt = jwtUtil.generateToken(userDetails);
+
+        // Fetch the full user object to get their name
+        final User user = userRepository.findByEmail(authRequest.getEmail())
+                .orElseThrow(() -> new Exception("User not found after authentication"));
+
+        // Pass the user's name to the token generator
+        final String jwt = jwtUtil.generateToken(userDetails, user.getName());
 
         return ResponseEntity.ok(new AuthResponse(jwt));
     }

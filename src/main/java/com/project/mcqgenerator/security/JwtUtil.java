@@ -55,18 +55,18 @@ public class JwtUtil {
         return extractExpiration(token).before(new Date());
     }
 
-    public String generateToken(UserDetails userDetails) {
+    public String generateToken(UserDetails userDetails, String name) { // Add "name" as a parameter
         Map<String, Object> claims = new HashMap<>();
+        claims.put("name", name); // Add the name to the claims
         return createToken(claims, userDetails.getUsername());
     }
 
     private String createToken(Map<String, Object> claims, String subject) {
         return Jwts.builder()
-                .setClaims(claims)
+                .setClaims(claims) // Use the claims map which now includes the name
                 .setSubject(subject)
                 .setIssuedAt(new Date(System.currentTimeMillis()))
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
-                // Use the new Key object for signing
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }

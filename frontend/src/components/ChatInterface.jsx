@@ -46,8 +46,8 @@ const ChatInterface = () => {
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="text-center mt-20">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Apna Laptop dekh!</h1>
-            <p className="text-lg text-gray-400">Provide text or upload a PDF to get started.</p>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Apna Laptop dekh 😞</h1>
+            <p className="text-lg text-gray-400">Description likh dena bhai 😭</p>
           </div>
         ) : (
           <div>
