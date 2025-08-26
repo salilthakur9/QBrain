@@ -1,17 +1,16 @@
 package com.project.mcqgenerator.controller;
 
 import com.project.mcqgenerator.model.McqHistory;
+import com.project.mcqgenerator.model.User;
 import com.project.mcqgenerator.repository.McqHistoryRepository;
+import com.project.mcqgenerator.repository.UserRepository;
 import com.project.mcqgenerator.security.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.*;
-import com.project.mcqgenerator.model.User;
-import com.project.mcqgenerator.repository.UserRepository;
-
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/history")
@@ -19,24 +18,45 @@ public class HistoryController {
 
     @Autowired
     private McqHistoryRepository mcqHistoryRepository;
-
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private JwtUtil jwtUtil;
 
     @GetMapping
     public ResponseEntity<?> getUserHistory(@RequestHeader("Authorization") String token) {
-        // Remove "Bearer " prefix to get the actual token
-        String jwt = token.substring(7);
-        String email = jwtUtil.extractUsername(jwt);
+        // --- THIS IS THE SPY CODE ---
+        System.out.println("\n--- HISTORY ENDPOINT TRIGGERED ---");
+        try {
+            String jwt = token.substring(7);
+            String email = jwtUtil.extractUsername(jwt);
+            System.out.println("1. Fetching history for email: " + email);
 
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
+            Optional<User> userOpt = userRepository.findByEmail(email);
 
-        List<McqHistory> history = mcqHistoryRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+            if (userOpt.isEmpty()) {
+                System.out.println("!!! ERROR: User not found in database for this email!");
+                return ResponseEntity.status(404).body("User not found");
+            }
 
-        return ResponseEntity.ok(history);
+            User user = userOpt.get();
+            String userId = user.getId();
+            System.out.println("2. User found. ID is: " + userId);
+
+            List<McqHistory> history = mcqHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
+            System.out.println("3. Database query executed. Found " + history.size() + " history items.");
+
+            if (!history.isEmpty()) {
+                System.out.println("4. First history item text: '" + history.get(0).getOriginalText() + "'");
+            }
+
+            System.out.println("--- HISTORY ENDPOINT FINISHED SUCCESSFULLY ---");
+            return ResponseEntity.ok(history);
+
+        } catch (Exception e) {
+            System.out.println("!!! FATAL EXCEPTION in HistoryController: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("Error fetching history.");
+        }
     }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { jwtDecode } from 'jwt-decode'; // Import the decoder
+import { jwtDecode } from 'jwt-decode';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import ChatInterface from './components/ChatInterface';
@@ -9,20 +9,20 @@ import AuthModal from './components/AuthModal';
 function App() {
   const [isSidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthModalOpen, setAuthModalOpen] = useState(false);
-  const [userToken, setUserToken] = useState(null);
-  const [currentUser, setCurrentUser] = useState(null); // State for user info {name, email}
+  const [user, setUser] = useState(null);
+  const [historyKey, setHistoryKey] = useState(0);
+  const [selectedHistory, setSelectedHistory] = useState(null);
+  // --- NEW --- State to explicitly trigger a new chat
+  const [chatKey, setChatKey] = useState(0);
 
   useEffect(() => {
     const token = localStorage.getItem('authToken');
     if (token) {
       try {
-        const decodedToken = jwtDecode(token);
-        // Check if token is expired
-        if (decodedToken.exp * 1000 > Date.now()) {
-          setUserToken(token);
-          setCurrentUser({ name: decodedToken.name, email: decodedToken.sub });
+        const decoded = jwtDecode(token);
+        if (decoded.exp * 1000 > Date.now()) {
+          setUser({ token: token, name: decoded.name, email: decoded.sub });
         } else {
-          // Token is expired, remove it
           localStorage.removeItem('authToken');
         }
       } catch (error) {
@@ -33,44 +33,70 @@ function App() {
   }, []);
 
   const handleLoginSuccess = (token) => {
-    const decodedToken = jwtDecode(token);
+    const decoded = jwtDecode(token);
     localStorage.setItem('authToken', token);
-    setUserToken(token);
-    setCurrentUser({ name: decodedToken.name, email: decodedToken.sub });
+    setUser({ token: token, name: decoded.name, email: decoded.sub });
     setAuthModalOpen(false);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
-    setUserToken(null);
-    setCurrentUser(null);
+    localStorage.removeItem('chatMessages'); // Also clear chat on logout
+    setUser(null);
+    setSelectedHistory(null);
+    setChatKey(prev => prev + 1); // Trigger a new chat on logout
   };
 
   const toggleSidebar = () => {
     setSidebarOpen(!isSidebarOpen);
   };
 
+  const triggerHistoryRefresh = () => {
+    setHistoryKey(prevKey => prevKey + 1);
+  };
+
+  const handleHistorySelect = (historyItem) => {
+    setSelectedHistory(historyItem);
+    if (window.innerWidth < 1024) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // --- FIX --- "New Chat" now simply increments the chatKey
+  const handleNewChat = () => {
+    setSelectedHistory(null);
+    setChatKey(prev => prev + 1);
+  };
+
+
   return (
-        <div className="dark flex flex-col h-screen bg-gray-900 text-white">
-          <Header
-            toggleSidebar={toggleSidebar}
-            currentUser={currentUser}
-            openAuthModal={() => setAuthModalOpen(true)}
-            handleLogout={handleLogout}
+    <div className="dark flex flex-col h-screen bg-gray-900 text-white">
+      <Header
+        toggleSidebar={toggleSidebar}
+        user={user}
+        openAuthModal={() => setAuthModalOpen(true)}
+        handleLogout={handleLogout}
+      />
+      <div className="flex flex-1 overflow-hidden">
+        <Sidebar
+          isSidebarOpen={isSidebarOpen}
+          toggleSidebar={toggleSidebar}
+          user={user}
+          historyKey={historyKey}
+          onHistorySelect={handleHistorySelect}
+          onNewChat={handleNewChat}
+        />
+        <div className="flex flex-col flex-1">
+          <ChatInterface
+            key={chatKey} // Pass the key here
+            userToken={user?.token}
+            onNewHistoryItem={triggerHistoryRefresh}
+            selectedHistory={selectedHistory}
           />
-          <div className="flex flex-1 overflow-hidden">
-            <Sidebar
-              isSidebarOpen={isSidebarOpen}
-              toggleSidebar={toggleSidebar}
-              currentUser={currentUser} // Pass user info
-              userToken={userToken}     // Pass the token
-            />
-            <div className="flex flex-col flex-1">
-              <ChatInterface />
-              <Footer />
-            </div>
+          <Footer />
+        </div>
       </div>
-      {isAuthModalOpen && !currentUser && (
+      {isAuthModalOpen && !user && (
         <AuthModal
           closeModal={() => setAuthModalOpen(false)}
           handleLoginSuccess={handleLoginSuccess}

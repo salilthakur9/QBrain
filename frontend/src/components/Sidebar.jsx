@@ -1,38 +1,42 @@
 import React, { useState, useEffect } from 'react';
 
-const Sidebar = ({ isSidebarOpen, toggleSidebar, currentUser, userToken }) => {
+// Receive onHistorySelect and onNewChat props
+const Sidebar = ({ isSidebarOpen, toggleSidebar, user, historyKey, onHistorySelect, onNewChat }) => {
   const [history, setHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // This function runs whenever the userToken changes
     const fetchHistory = async () => {
-      if (!userToken) {
-        setHistory([]); // Clear history if user logs out
+      if (!user?.token) {
+        setHistory([]);
         return;
       }
       setIsLoading(true);
       try {
         const response = await fetch('http://localhost:8081/api/history', {
-          headers: {
-            'Authorization': `Bearer ${userToken}`,
-          },
+          headers: { 'Authorization': `Bearer ${user.token}` },
+          cache: 'no-cache',
         });
-        if (!response.ok) {
-          throw new Error('Failed to fetch history');
-        }
+        if (!response.ok) throw new Error('Failed to fetch history');
         const data = await response.json();
         setHistory(data);
       } catch (error) {
         console.error("Error fetching history:", error);
-        // Optionally, show an error message to the user
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchHistory();
-  }, [userToken]); // The dependency array ensures this runs when the token changes
+  }, [user, historyKey]);
+
+  const handleNewChatClick = () => {
+    // Clear the main chat window
+    onNewChat();
+    // Close sidebar on mobile for better UX
+    if (window.innerWidth < 1024) {
+      toggleSidebar();
+    }
+  };
 
   return (
     <aside
@@ -40,7 +44,7 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, currentUser, userToken }) => {
         fixed inset-y-0 left-0 bg-gray-800
         w-64 p-4 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         transition-transform duration-300 ease-in-out z-30
-        flex flex-col
+        flex flex-col border-r border-gray-700
       `}
     >
       <div className="flex justify-between items-center mb-4 flex-shrink-0">
@@ -52,23 +56,30 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar, currentUser, userToken }) => {
         </button>
       </div>
 
-      {/* Conditional Content */}
+      {/* --- NEW: New Chat Button --- */}
+      <button
+        onClick={handleNewChatClick}
+        className="w-full mb-4 p-2 rounded bg-sky-500 text-white font-semibold hover:bg-sky-600 flex items-center justify-center gap-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+        New Chat
+      </button>
+
       <div className="flex-grow overflow-y-auto">
-        {currentUser ? (
-          isLoading ? (
-            <p className="text-gray-400">Loading history...</p>
-          ) : history.length > 0 ? (
-            <ul>
+        {user ? (
+          isLoading ? ( <p className="text-gray-400">Loading...</p> )
+          : history.length > 0 ? (
+            <ul className="space-y-2">
               {history.map((item) => (
-                <li key={item.id} className="p-2 rounded hover:bg-gray-700 cursor-pointer truncate">
-                  {/* We'll just show the first few words of the original text */}
-                  {item.originalText.substring(0, 30)}...
+                // --- NEW: onClick handler added ---
+                <li key={item.id} onClick={() => onHistorySelect(item)} className="p-2 rounded text-sm hover:bg-gray-700 cursor-pointer truncate">
+                  {item.originalText.substring(0, 35)}...
                 </li>
               ))}
             </ul>
-          ) : (
-            <p className="text-gray-400">No history yet.</p>
-          )
+          ) : ( <p className="text-gray-400 text-center mt-4">No history yet.</p> )
         ) : (
           <div className="text-center mt-10">
             <p className="text-sm text-gray-500">Login to see your history.</p>

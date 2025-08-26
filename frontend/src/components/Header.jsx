@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Header = ({ toggleSidebar, currentUser, openAuthModal, handleLogout }) => {
+const Header = ({ toggleSidebar, user, openAuthModal, handleLogout }) => {
   return (
     <header className="bg-gray-800 p-4 flex justify-between items-center shadow-md z-20">
       <div className="flex items-center gap-4">
@@ -13,14 +13,13 @@ const Header = ({ toggleSidebar, currentUser, openAuthModal, handleLogout }) => 
       </div>
 
       <div className="flex items-center gap-4">
-        {currentUser ? (
+        {user ? (
           <>
-            {/* User Info Display */}
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-sky-500 flex items-center justify-center font-bold">
-                {currentUser.name.charAt(0)}
+                {user.name.charAt(0)}
               </div>
-              <span className="font-semibold hidden sm:block">{currentUser.name}</span>
+              <span className="font-semibold hidden sm:block">{user.name}</span>
             </div>
             <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded font-semibold hover:bg-red-600">
               Logout
