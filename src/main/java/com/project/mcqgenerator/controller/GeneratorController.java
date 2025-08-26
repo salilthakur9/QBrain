@@ -8,11 +8,14 @@ import com.project.mcqgenerator.repository.McqHistoryRepository;
 import com.project.mcqgenerator.repository.UserRepository;
 import com.project.mcqgenerator.security.JwtUtil;
 import com.project.mcqgenerator.service.GeminiService;
+import com.project.mcqgenerator.service.PdfService; // Import the new service
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile; // Import for file handling
 import reactor.core.publisher.Mono;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
@@ -23,12 +26,13 @@ public class GeneratorController {
     @Autowired
     private GeminiService geminiService;
     @Autowired
+    private PdfService pdfService; // Autowire the new service
+    @Autowired
     private JwtUtil jwtUtil;
     @Autowired
     private UserRepository userRepository;
     @Autowired
     private McqHistoryRepository mcqHistoryRepository;
-    // Helper to parse JSON
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public static class McqRequest {
@@ -37,39 +41,55 @@ public class GeneratorController {
         public void setText(String text) { this.text = text; }
     }
 
+    // This is our existing endpoint for text
     @PostMapping("/mcq")
-    public Mono<ResponseEntity<String>> generateMcqs(
+    public Mono<ResponseEntity<String>> generateMcqsFromText(
             @RequestBody McqRequest mcqRequest,
             @RequestHeader(value = "Authorization", required = false) String token) {
 
-        return geminiService.generateMcqs(mcqRequest.getText())
+        return processGeneration(mcqRequest.getText(), token);
+    }
+
+    // --- NEW ENDPOINT FOR PDF UPLOADS ---
+    @PostMapping("/mcq-pdf")
+    public Mono<ResponseEntity<String>> generateMcqsFromPdf(
+            @RequestParam("file") MultipartFile file,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+
+        try {
+            String extractedText = pdfService.extractText(file);
+            if (extractedText.isBlank()) {
+                return Mono.just(ResponseEntity.badRequest().body("Could not extract text from PDF."));
+            }
+            return processGeneration(extractedText, token);
+        } catch (IOException e) {
+            System.err.println("Error processing PDF file: " + e.getMessage());
+            return Mono.just(ResponseEntity.status(500).body("Error reading PDF file."));
+        }
+    }
+
+    // --- NEW HELPER METHOD ---
+    // We've moved the common logic into this reusable method
+    private Mono<ResponseEntity<String>> processGeneration(String text, String token) {
+        return geminiService.generateMcqs(text)
                 .flatMap(responseBody -> {
                     if (token != null && token.startsWith("Bearer ")) {
                         String jwt = token.substring(7);
                         String email = jwtUtil.extractUsername(jwt);
-                        Optional<User> userOpt = userRepository.findByEmail(email);
-
-                        if (userOpt.isPresent()) {
-                            User user = userOpt.get();
+                        userRepository.findByEmail(email).ifPresent(user -> {
                             McqHistory historyEntry = new McqHistory();
                             historyEntry.setUserId(user.getId());
-                            historyEntry.setOriginalText(mcqRequest.getText());
-
-                            // --- THIS IS THE FIX ---
-                            // We now parse the raw response and save ONLY the clean MCQ text
+                            historyEntry.setOriginalText(text); // Use the provided text
                             try {
                                 JsonNode root = objectMapper.readTree(responseBody);
                                 String cleanMcqJson = root.path("candidates").get(0).path("content").path("parts").get(0).path("text").asText();
                                 historyEntry.setGeneratedMcqs(cleanMcqJson);
                             } catch (Exception e) {
-                                // Fallback in case of parsing error
                                 historyEntry.setGeneratedMcqs(responseBody);
                             }
-                            // --- END OF FIX ---
-
                             historyEntry.setCreatedAt(LocalDateTime.now());
                             mcqHistoryRepository.save(historyEntry);
-                        }
+                        });
                     }
                     return Mono.just(ResponseEntity.ok(responseBody));
                 }).onErrorResume(e -> {

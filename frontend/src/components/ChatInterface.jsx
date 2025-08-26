@@ -2,9 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
 
 const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
-  // This state now correctly initializes for a new chat or loads from storage
   const [messages, setMessages] = useState(() => {
-    // If we are viewing a history item, don't load from storage
     if (selectedHistory) return [];
     const savedMessages = localStorage.getItem('chatMessages');
     return savedMessages ? JSON.parse(savedMessages) : [];
@@ -13,24 +11,21 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef(null);
+  // --- NEW --- Create a ref for our hidden file input
+  const fileInputRef = useRef(null);
 
-  // This effect now correctly saves the active chat to localStorage
   useEffect(() => {
-    // Only save to localStorage if we are NOT viewing a history item
     if (!selectedHistory) {
       localStorage.setItem('chatMessages', JSON.stringify(messages));
     }
   }, [messages, selectedHistory]);
 
-  // This effect handles displaying a selected history item
   useEffect(() => {
     if (selectedHistory && selectedHistory.originalText) {
-      const userMessage = { role: 'user', text: selectedHistory.originalText };
+      const userMessage = { role: 'user', text: `PDF: ${selectedHistory.originalText.substring(0, 40)}...` }; // Show a snippet for PDF history
       const aiMessage = { role: 'model', text: selectedHistory.generatedMcqs };
       setMessages([userMessage, aiMessage]);
     }
-    // When selectedHistory becomes null (e.g. on New Chat), this component will
-    // re-mount because of the key prop, correctly re-initializing the state.
   }, [selectedHistory]);
 
   useEffect(() => {
@@ -40,15 +35,64 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!inputText.trim() || isLoading) return;
-
-    const userMessage = { role: 'user', text: inputText };
-
-    // If we were viewing history, a new message starts a new chat
-    const newMessages = selectedHistory ? [userMessage] : [...messages, userMessage];
-    setMessages(newMessages);
-
     const currentInput = inputText;
     setInputText('');
+    await generateMcqsFromText(currentInput);
+  };
+
+  // --- NEW: Function to handle PDF file upload ---
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Reset the file input so the same file can be uploaded again
+    event.target.value = null;
+
+    const userMessage = { role: 'user', text: `File Uploaded: ${file.name}` };
+    setMessages([userMessage]);
+    setIsLoading(true);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const headers = {};
+      if (userToken) {
+        headers['Authorization'] = `Bearer ${userToken}`;
+      }
+
+      const response = await fetch('http://localhost:8081/api/generate/mcq-pdf', {
+        method: 'POST',
+        headers: headers,
+        body: formData, // Send as form data, not JSON
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Network response was not ok');
+      }
+
+      const data = await response.json();
+      const aiText = data.candidates[0].content.parts[0].text;
+      const aiMessage = { role: 'model', text: aiText };
+      setMessages(prev => [...prev, aiMessage]);
+
+      if (userToken) {
+        onNewHistoryItem();
+      }
+    } catch (error) {
+      console.error('Error uploading PDF:', error);
+      const errorMessage = { role: 'model', text: `Sorry, I ran into an error processing the PDF: ${error.message}` };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // --- REFACTORED: Text generation logic moved to its own function ---
+  const generateMcqsFromText = async (text) => {
+    const userMessage = { role: 'user', text: text };
+    setMessages(selectedHistory ? [userMessage] : [...messages, userMessage]);
     setIsLoading(true);
 
     try {
@@ -59,7 +103,7 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
       const response = await fetch('http://localhost:8081/api/generate/mcq', {
         method: 'POST',
         headers: headers,
-        body: JSON.stringify({ text: currentInput }),
+        body: JSON.stringify({ text: text }),
       });
 
       if (!response.ok) throw new Error('Network response was not ok');
@@ -67,7 +111,6 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
       const data = await response.json();
       const aiText = data.candidates[0].content.parts[0].text;
       const aiMessage = { role: 'model', text: aiText };
-
       setMessages(prev => [...prev, aiMessage]);
 
       if (userToken) {
@@ -82,12 +125,13 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
     }
   };
 
+
   return (
     <main className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
           <div className="text-center mt-20">
-            <h1 className="text-4xl md-text-5xl font-bold mb-4">MCQ Generator</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">MCQ Generator</h1>
             <p className="text-lg text-gray-400">Provide text or upload a PDF to get started.</p>
           </div>
         ) : (
@@ -105,6 +149,14 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
       </div>
       <div className="w-full max-w-4xl mx-auto p-4">
         <form onSubmit={handleSendMessage} className="relative">
+          {/* --- NEW: Hidden file input --- */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            className="hidden"
+            accept=".pdf" // Only allow PDF files
+          />
           <textarea
             className="w-full p-4 pr-28 rounded-full bg-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
             placeholder="Enter your text here..."
@@ -114,7 +166,13 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { handleSendMessage(e); } }}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
-            <button type="button" className="p-2 rounded-full hover:bg-gray-700" title="Upload PDF (coming soon)">
+            {/* --- NEW: Upload button now triggers the hidden input --- */}
+            <button
+              type="button"
+              className="p-2 rounded-full hover:bg-gray-700"
+              title="Upload PDF"
+              onClick={() => fileInputRef.current.click()}
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
             </button>
             <button type="submit" disabled={isLoading} className="p-3 rounded-full bg-sky-500 text-white hover:bg-sky-600 disabled:bg-gray-600">
