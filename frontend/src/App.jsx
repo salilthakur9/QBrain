@@ -12,7 +12,6 @@ function App() {
   const [user, setUser] = useState(null);
   const [historyKey, setHistoryKey] = useState(0);
   const [selectedHistory, setSelectedHistory] = useState(null);
-  // --- NEW --- State to explicitly trigger a new chat
   const [chatKey, setChatKey] = useState(0);
 
   useEffect(() => {
@@ -41,10 +40,10 @@ function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
-    localStorage.removeItem('chatMessages'); // Also clear chat on logout
+    localStorage.removeItem('chatMessages');
     setUser(null);
     setSelectedHistory(null);
-    setChatKey(prev => prev + 1); // Trigger a new chat on logout
+    setChatKey(prev => prev + 1);
   };
 
   const toggleSidebar = () => {
@@ -62,15 +61,17 @@ function App() {
     }
   };
 
-  // --- FIX --- "New Chat" now simply increments the chatKey
+  // --- THIS IS THE FIX ---
+  // We now explicitly remove the old chat from storage
   const handleNewChat = () => {
     setSelectedHistory(null);
+    localStorage.removeItem('chatMessages'); // This line fixes the bug
     setChatKey(prev => prev + 1);
   };
 
 
   return (
-    <div className="dark flex flex-col h-screen bg-gray-900 text-white">
+    <div className="dark flex flex-col h-screen bg-black text-white">
       <Header
         toggleSidebar={toggleSidebar}
         user={user}
@@ -88,7 +89,7 @@ function App() {
         />
         <div className="flex flex-col flex-1">
           <ChatInterface
-            key={chatKey} // Pass the key here
+            key={chatKey}
             userToken={user?.token}
             onNewHistoryItem={triggerHistoryRefresh}
             selectedHistory={selectedHistory}

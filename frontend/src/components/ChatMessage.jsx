@@ -9,7 +9,7 @@ const McqDisplay = ({ questions }) => {
   return (
     <div className="space-y-6">
       {questions.map((q, index) => (
-        <div key={index} className="p-4 bg-gray-700 rounded-lg">
+        <div key={index} className="p-4 bg-black rounded-lg">
           <p className="font-semibold mb-2">{index + 1}. {q.question}</p>
           <ul className="space-y-1 list-inside">
             {/* Ensure options is an array before mapping */}
@@ -59,7 +59,7 @@ const ChatMessage = ({ message }) => {
   // --- END OF FIX ---
 
   return (
-    <div className={`py-6 ${isUser ? '' : 'bg-gray-800'}`}>
+    <div className={`py-6 ${isUser ? '' : 'bg-black'}`}>
       <div className="max-w-4xl mx-auto px-4 flex items-start gap-4">
         <div className={`w-8 h-8 rounded-full ${isUser ? 'bg-gray-600' : 'bg-sky-500'} flex items-center justify-center font-bold text-white flex-shrink-0`}>
           {isUser ? 'U' : 'AI'}

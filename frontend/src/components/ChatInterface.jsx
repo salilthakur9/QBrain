@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ChatMessage from './ChatMessage';
+import vdo from '../assets/vdo.mp4';
 
 const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
   const [messages, setMessages] = useState(() => {
@@ -130,10 +131,21 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
     <main className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 overflow-y-auto">
         {messages.length === 0 ? (
-          <div className="text-center mt-20">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">MCQ Generator</h1>
-            <p className="text-lg text-gray-400">Provide text or upload a PDF to get started.</p>
-          </div>
+          <div className="text-center mt-20 flex flex-col items-center">
+                      {/* The h1 and p tags are replaced by this video tag */}
+                      <video
+                        src={vdo}
+                        autoPlay
+                        loop
+                        muted
+                        className="w-100 h-100 max-w-lg rounded-lg"
+                      >
+                        Your browser does not support the video tag.
+                      </video>
+                      <p className="text-lg text-gray-400 mt-4">
+                        Provide text or upload a PDF to get started.
+                      </p>
+                    </div>
         ) : (
           <div>
             {messages.map((msg, index) => (<ChatMessage key={index} message={msg} />))}
@@ -158,7 +170,7 @@ const ChatInterface = ({ userToken, onNewHistoryItem, selectedHistory }) => {
             accept=".pdf" // Only allow PDF files
           />
           <textarea
-            className="w-full p-4 pr-28 rounded-full bg-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
+            className="w-full p-4 pr-28 rounded-full bg-black border border-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 resize-none"
             placeholder="Enter your text here..."
             rows="1"
             value={inputText}
