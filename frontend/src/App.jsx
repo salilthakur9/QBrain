@@ -51,23 +51,24 @@ function App() {
   };
 
   return (
-    <div className="dark flex flex-col h-screen bg-gray-900 text-white">
-      <Header
-        toggleSidebar={toggleSidebar}
-        currentUser={currentUser} // Pass the whole user object
-        openAuthModal={() => setAuthModalOpen(true)}
-        handleLogout={handleLogout}
-      />
-      {/* ... rest of the JSX is the same */}
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          isSidebarOpen={isSidebarOpen}
-          toggleSidebar={toggleSidebar}
-        />
-        <div className="flex flex-col flex-1">
-          <ChatInterface />
-          <Footer />
-        </div>
+        <div className="dark flex flex-col h-screen bg-gray-900 text-white">
+          <Header
+            toggleSidebar={toggleSidebar}
+            currentUser={currentUser}
+            openAuthModal={() => setAuthModalOpen(true)}
+            handleLogout={handleLogout}
+          />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar
+              isSidebarOpen={isSidebarOpen}
+              toggleSidebar={toggleSidebar}
+              currentUser={currentUser} // Pass user info
+              userToken={userToken}     // Pass the token
+            />
+            <div className="flex flex-col flex-1">
+              <ChatInterface />
+              <Footer />
+            </div>
       </div>
       {isAuthModalOpen && !currentUser && (
         <AuthModal
