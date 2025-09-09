@@ -1,17 +1,27 @@
 package com.project.mcqgenerator.model;
 
+import jakarta.persistence.*; // Import from jakarta.persistence
 import lombok.Data;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 @Data
-@Document(collection = "mcq_history")
+@Entity // Use @Entity instead of @Document
+@Table(name = "mcq_history") // Specifies the table name
 public class McqHistory {
+
     @Id
-    private String id;
-    private String userId; // To link this entry to a specific user
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Long userId; // This will store the ID of the User
+
+    // Use @Column(columnDefinition = "TEXT") for potentially very long strings
+    // The default VARCHAR(255) might be too short for the original text.
+    @Column(columnDefinition = "TEXT")
     private String originalText;
-    private String generatedMcqs; // We will store the generated questions as a JSON string
+
+    @Column(columnDefinition = "TEXT")
+    private String generatedMcqs;
+
     private LocalDateTime createdAt;
 }

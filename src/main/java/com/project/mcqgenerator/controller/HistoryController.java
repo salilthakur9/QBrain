@@ -25,7 +25,6 @@ public class HistoryController {
 
     @GetMapping
     public ResponseEntity<?> getUserHistory(@RequestHeader("Authorization") String token) {
-        // --- THIS IS THE SPY CODE ---
         System.out.println("\n--- HISTORY ENDPOINT TRIGGERED ---");
         try {
             String jwt = token.substring(7);
@@ -40,9 +39,12 @@ public class HistoryController {
             }
 
             User user = userOpt.get();
-            String userId = user.getId();
+            // --- THIS IS THE FIX ---
+            // user.getId() now returns a Long, so we store it in a Long.
+            Long userId = user.getId();
             System.out.println("2. User found. ID is: " + userId);
 
+            // This line now works perfectly because it receives the Long it expects.
             List<McqHistory> history = mcqHistoryRepository.findByUserIdOrderByCreatedAtDesc(userId);
             System.out.println("3. Database query executed. Found " + history.size() + " history items.");
 
