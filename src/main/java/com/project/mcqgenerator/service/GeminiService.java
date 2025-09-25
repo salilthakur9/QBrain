@@ -1,13 +1,14 @@
 package com.project.mcqgenerator.service;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import reactor.core.publisher.Mono;
 
 @Service
 public class GeminiService {
@@ -17,16 +18,21 @@ public class GeminiService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
+    @Value("${gemini.model.name:gemini-2.5-flash}")
+    private String geminiModelName; // default if not set
+
     public GeminiService(WebClient.Builder webClientBuilder) {
-        this.webClient = webClientBuilder.baseUrl("https://generativelanguage.googleapis.com").build();
+        this.webClient = webClientBuilder
+                .baseUrl("https://generativelanguage.googleapis.com/v1beta/models")
+                .build();
     }
 
     public Mono<String> generateMcqs(String text) {
-        String apiUrl = "/v1beta/models/gemini-1.5-flash-latest:generateContent?key=" + apiKey;
+        // Build API URL
+        String apiUrl = String.format("/%s:generateContent?key=%s", geminiModelName, apiKey);
 
-        // --- NEW: DYNAMIC QUESTION COUNT LOGIC ---
+        // Dynamic question count
         int wordCount = text.trim().split("\\s+").length;
-        // Logic: 1 question per 50 words, with a minimum of 3 and a maximum of 10.
         int numQuestions = Math.max(3, Math.min(20, wordCount / 30));
 
         String prompt = String.format(
@@ -37,12 +43,13 @@ public class GeminiService {
                         "Here is the text: \n\n%s",
                 numQuestions, text
         );
-        // --- END OF NEW LOGIC ---
 
+        // Build request body
         Map<String, Object> textPart = new HashMap<>();
         textPart.put("text", prompt);
 
         Map<String, Object> content = new HashMap<>();
+        content.put("role", "user"); // Important!
         content.put("parts", Collections.singletonList(textPart));
 
         Map<String, Object> requestBody = new HashMap<>();
