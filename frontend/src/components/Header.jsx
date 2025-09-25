@@ -11,8 +11,8 @@ const Header = ({ toggleSidebar, user, openAuthModal, handleLogout }) => {
 
     if (isConfirmed) {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('/api/user/me', {
+        const token = localStorage.getItem('authToken');
+        const response = await fetch('http://localhost:8081/api/user/me', {
           method: 'DELETE',
           headers: { 'Authorization': `Bearer ${token}` },
         });
