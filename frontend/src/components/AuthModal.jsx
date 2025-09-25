@@ -31,6 +31,7 @@ const AuthModal = ({ closeModal, handleLoginSuccess }) => {
 
       if (isLoginView) {
         const data = await response.json();
+          localStorage.setItem("token", data.token);
         handleLoginSuccess(data.token); // Pass the token up to App.jsx
       } else {
         // Automatically switch to login view after successful registration
